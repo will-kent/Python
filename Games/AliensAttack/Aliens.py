@@ -16,7 +16,7 @@ textFont = pygame.font.SysFont("monospace", 50)
 scoreFont = pygame.font.SysFont("monospace", 20)
 
 gameStarted = False
-gameStartedTime = 0
+gameStartedTime = GAME_TIME.get_ticks()
 gameFinishedTime = 0
 gameOver = False
 playerName = "default"
@@ -92,7 +92,7 @@ def drawGame(playerName):
 
 def playerLost(playerName):
     surface.blit(backgroundLost, (0,0))
-    lostText = textFont.render("Space Pilot " + playerName + " lost", 1, white)
+    lostText = textFont.render("Space Pilot " + playerName + " died in combat", 1, white)
     lostRect = lostText.get_rect()
     lostRect.center = (windowWidth / 2, windowHeight / 2)
     surface.blit(lostText, lostRect)
@@ -111,7 +111,7 @@ def setScore(score, playerName):
 # 'main' loop
 while True:
 
-    timeTick = GAME_TIME.get_ticks()
+    tickTime = GAME_TIME.get_ticks() - gameStartedTime
     mousePosition = pygame.mouse.get_pos()
     mouseStates = pygame.mouse.get_pressed()
 

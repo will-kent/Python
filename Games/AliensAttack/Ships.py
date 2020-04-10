@@ -15,6 +15,7 @@ class Player():
     bulletImage = "assets/you_pellet.png"
     bulletSpeed = -10
     health = 5
+    time = 0
 
     def loadImages(self, playerName):
         if playerName == "James":
@@ -96,15 +97,19 @@ class Enemy(Player):
         if shouldFire <= 0.01:
             self.fire()
 
-    def loadImages(self):
-        self.image = self.pygame.image.load("assets/them_ship.png")
+    def loadImages(self, number):
+        if  number >= 9:
+            self.image = self.pygame.image.load("assets/enemy_ship_2.png")
+        else:
+            self.image = self.pygame.image.load("assets/them_ship.png")
 
     def __init__(self, x, y, pygame, surface, health):
+        randomNum = random.randint(1,11)
         self.x = x
         self.y = y
         self.pygame = pygame
         self.surface = surface
-        self.loadImages()
+        self.loadImages(randomNum)
         self.bullets = []
         self.health = health
 
