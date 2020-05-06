@@ -1,4 +1,5 @@
 import streamlit as st
+import altair as alt
 import pandas as pd
 import numpy as np
 import pydeck as pdk
@@ -18,27 +19,21 @@ covid_data_date = ["date"]
 date = datetime.date(2020,1,1)
 
 # Set colours
-origin_colour = [21,65,204]
-dest_colour = [230,25,31]
+origin_colour = [80,217,84,80]
+dest_colour = [217,84,80,80]
 covid_colour = [134,11,0,200]
-highlight_colour = [91,221,34]
-
-
-@st.cache
-def load_csv_data(src, dates):
-    data = pd.read_csv(src)
-    lowercase = lambda x: str(x).lower()
-    data.rename(lowercase, axis='columns', inplace=True)
-    for date in dates:
-        data[date] = pd.to_datetime(data[date])
-    return data
+highlight_colour = [84,80,217,255]
 
 # Variable for date picker, default to Jan 1st 2020
 start_date = datetime.date(2020,1,1)
 
 # Load Data
-flight_data = load_csv_data(flight_data_path, flight_data_dates)
-covid_data = load_csv_data(covid_data_path, [])
+flight_data = pd.read_csv(flight_data_path)
+covid_data = pd.read_csv(covid_data_path)
+
+# Make dates, dates again
+flight_data["firstseen"] = pd.to_datetime(flight_data["firstseen"])
+flight_data["lastseen"] = pd.to_datetime(flight_data["lastseen"])
 covid_data["date"] = pd.to_datetime(covid_data["date"], format = "%d/%m/%Y")
 
 # Set sidebar options
@@ -53,6 +48,9 @@ for measure in covid_measures:
 view = pdk.ViewState(latitude=0, longitude=40, zoom=0.4)
 
 # Create sidebar options
+st.sidebar.markdown("Select parameters and press play to observe changes between 1 January 2020 and 31 March 2020")
+animate = st.sidebar.button("Press to Play")
+
 origin_choice = st.sidebar.multiselect(
     'Select the origin of the country',
     flight_data.groupby('origin_country').count().reset_index()['origin_country'].tolist()
@@ -98,11 +96,11 @@ covid_layer = pdk.Layer(
         opacity=0.8,
         stroked=True,
         filled=True,
-        radius_scale=5,
+        radius_scale=5, # 5
         radius_min_pixels=1,
-        radius_max_pixels=1000,
+        radius_max_pixels=30, # 1000
         line_width_min_pixels=1,
-        get_position=["longitude", "latitude"],
+        get_position=["Longitude", "Latitude"],
         get_radius=covid_measure,
         get_fill_color=covid_colour,
         get_line_color=covid_colour,
@@ -115,10 +113,6 @@ tooltip_value = {"html": "Flight {number} from {origin_country} to {destination_
             'background': 'black'}
         }
 
-# Create a subheading to display current date
-chart_date = date.strftime('%d %m %Y')
-chart_subheader = st.subheader(chart_date)
-
 # Create the deck.gl map
 r = pdk.Deck(
     layers=[covid_layer,flight_layer],
@@ -128,26 +122,62 @@ r = pdk.Deck(
     tooltip=tooltip_value
 )
 
+# Create Covid chart by country
+covid_subset = covid_data
+
+covid_cases_chart = alt.Chart(covid_subset).transform_aggregate(
+    max_value = "max(" + covid_measure + ")", groupby = ["Country"]
+).transform_window(
+    rank = "rank(max_value)",
+    frame = [None, 0],
+    sort = [alt.SortField("max_value", order = "descending")]
+).transform_filter(
+    alt.datum.rank <= 10
+).mark_bar(color = "#212aba").encode(
+    x = alt.X("max_value:Q",  title = covid_measure.replace("_"," ")),
+    y = alt.Y("Country:N", type = "nominal", sort = "-x", title = "Country"),
+    tooltip = [alt.Tooltip("max_value:Q", title = covid_measure.replace("_"," "))]
+    ).properties(
+        width = 700,
+        height = 500
+        )
+
+# Create a subheading to display current date
+page_header = st.header("COVID-19 and Global Travel")
+st.write("COVID-19 has had a huge impact on all aspects of our daily lives; none more so than how Australia interacts with the ", \
+         "rest of the world.")
+
+chart_date = date.strftime('%d %m %Y')
+chart_subheader = st.subheader("Flights and COVID-19 value on " + chart_date)
+
 # Render the map to make it avialable to all
 map = st.pydeck_chart(r)
 
+# Render the bar chart of COVID-19 Values
+st.subheader("Top 10 countries by " + covid_measure.replace("_"," "))
+final_chart = st.altair_chart(covid_cases_chart)
+
 # Update the maps and the subheading each day for 90 days
-for i in range(0, 90, 1):
-    # Increment day by 1
-    date += datetime.timedelta(days=1)
-
-    # Update data in map layers
-    flight_layer.data = flight_subset[flight_subset['firstseen'].dt.normalize() == date.isoformat()]
-    covid_layer.data = covid_data[covid_data['date'] == date.isoformat()]
-    # Update the deck.gl map
-    r.update()
-
-    # Render the map
-    map.pydeck_chart(r)
-
-    # Update the heading with current date
-    chart_date = date.strftime('%d %m %Y')
-    chart_subheader.subheader(chart_date)
-
-    # wait 0.1 second before go onto next day
-    time.sleep(0.1)
+if animate:
+    for i in range(0, 90, 1):
+        # Increment day by 1
+        date += datetime.timedelta(days=1)
+    
+        # Update data in map layers
+        flight_layer.data = flight_subset[flight_subset['firstseen'].dt.normalize() == date.isoformat()]
+        covid_layer.data = covid_data[covid_data['date'] == date.isoformat()]
+        covid_cases_chart.data = covid_data[covid_data['date'] <= date.isoformat()]
+        
+        # Update the deck.gl map
+        r.update()
+    
+        # Render the map
+        map.pydeck_chart(r)
+        final_chart.altair_chart(covid_cases_chart)
+    
+        # Update the heading with current date
+        chart_date = date.strftime('%d %m %Y')
+        chart_subheader.subheader("Flights and COVID-19 value on " + chart_date)
+    
+        # wait 0.1 second before go onto next day
+        time.sleep(0.2)
