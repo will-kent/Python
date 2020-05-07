@@ -45,11 +45,11 @@ for measure in covid_measures:
     select_covid_list.append(measure_name)
 
 # Set viewport for the deckgl map
-view = pdk.ViewState(latitude=0, longitude=40, zoom=0.4)
+view = pdk.ViewState(latitude=0, longitude=15, zoom=0.4)
 
 # Create sidebar options
-st.sidebar.markdown("Select parameters and press play to observe changes between 1 January 2020 and 31 March 2020")
-animate = st.sidebar.button("Press to Play")
+st.sidebar.markdown("Select parameters and press \"Play\"")
+animate = st.sidebar.button("Play")
 
 origin_choice = st.sidebar.multiselect(
     'Select the origin of the country',
@@ -62,6 +62,7 @@ dest_choice = st.sidebar.multiselect(
     )
 
 covid_measure = st.sidebar.radio("Select a COVID-19 measure to display", select_covid_list)
+covid_measure_nice_name = covid_measure
 covid_measure = covid_measure.replace(" ","_")
 
 # Create subset of flight data based on selections made
@@ -122,21 +123,38 @@ r = pdk.Deck(
     tooltip=tooltip_value
 )
 
-# Create Covid chart by country
-covid_subset = covid_data
+# Create Covid chart
+# Trim covid data frame to period interested in
+covid_subset = covid_data[covid_data["date"] <= datetime.datetime(2020, 3, 31)]
+
+# Get maximum value for selected covid "measure" - required for line chart
+max_value = covid_subset.groupby("date")[covid_measure].sum().max()
+
+# Bar chart of "measure" by Country - Didin't look that great
+#covid_cases_chart = alt.Chart(covid_subset).transform_aggregate(
+#    max_value = "max(" + covid_measure + ")", groupby = ["Country"]
+#).transform_window(
+#    rank = "rank(max_value)",
+#    frame = [None, 0],
+#    sort = [alt.SortField("max_value", order = "descending")]
+#).transform_filter(
+#    alt.datum.rank <= 10
+#).mark_bar(color = "#212aba").encode(
+#    x = alt.X("max_value:Q",  title = covid_measure.replace("_"," ")),
+#    y = alt.Y("Country:N", type = "nominal", sort = "-x", title = "Country"),
+#    tooltip = [alt.Tooltip("max_value:Q", title = covid_measure.replace("_"," "))]
+#    ).properties(
+#        width = 700,
+#        height = 500
+#        )
 
 covid_cases_chart = alt.Chart(covid_subset).transform_aggregate(
-    max_value = "max(" + covid_measure + ")", groupby = ["Country"]
-).transform_window(
-    rank = "rank(max_value)",
-    frame = [None, 0],
-    sort = [alt.SortField("max_value", order = "descending")]
-).transform_filter(
-    alt.datum.rank <= 10
-).mark_bar(color = "#212aba").encode(
-    x = alt.X("max_value:Q",  title = covid_measure.replace("_"," ")),
-    y = alt.Y("Country:N", type = "nominal", sort = "-x", title = "Country"),
-    tooltip = [alt.Tooltip("max_value:Q", title = covid_measure.replace("_"," "))]
+    sum_value = "sum(" + covid_measure + ")", groupby = ["date"]
+    ).mark_line(color = "#212aba").encode(
+    x = alt.X("date", title = "", scale = alt.Scale(
+        domain = [datetime.datetime(2020, 1, 1).isoformat(), datetime.datetime(2020, 3, 31).isoformat()])),
+    y = alt.Y("sum_value:Q", title = covid_measure_nice_name, scale = alt.Scale(
+        domain = [0, max_value]))
     ).properties(
         width = 700,
         height = 500
@@ -144,18 +162,22 @@ covid_cases_chart = alt.Chart(covid_subset).transform_aggregate(
 
 # Create a subheading to display current date
 page_header = st.header("COVID-19 and Global Travel")
-st.write("COVID-19 has had a huge impact on all aspects of our daily lives; none more so than how Australia interacts with the ", \
-         "rest of the world.")
+st.write("Australia is a nation of travellers but COVID-19 has delayed many a journey. How have flights into, and out of, Australia and ", \
+         "New Zealand been impacted as the COVID-19 pandemic has spread?")
+st.write("Use the options to the left to investigate the spread of COVID-19 and its impact on Global Travel. Press \"Play\" to watch the ", \
+         "evolution of the pandemic and its imapct.")
 
 chart_date = date.strftime('%d %m %Y')
-chart_subheader = st.subheader("Flights and COVID-19 value on " + chart_date)
+chart_subheader = st.subheader("Flights and COVID-19 " + covid_measure_nice_name +" on " + chart_date)
 
 # Render the map to make it avialable to all
 map = st.pydeck_chart(r)
 
+st.write("")
+
 # Render the bar chart of COVID-19 Values
-st.subheader("Top 10 countries by " + covid_measure.replace("_"," "))
-final_chart = st.altair_chart(covid_cases_chart)
+covid_line_subheader = st.subheader("The number of COVID-19 " + covid_measure_nice_name + " on " + chart_date)
+covid_line = st.altair_chart(covid_cases_chart)
 
 # Update the maps and the subheading each day for 90 days
 if animate:
@@ -173,11 +195,12 @@ if animate:
     
         # Render the map
         map.pydeck_chart(r)
-        final_chart.altair_chart(covid_cases_chart)
+        covid_line.altair_chart(covid_cases_chart)
     
         # Update the heading with current date
         chart_date = date.strftime('%d %m %Y')
-        chart_subheader.subheader("Flights and COVID-19 value on " + chart_date)
+        chart_subheader.subheader("Flights and COVID-19 " + covid_measure_nice_name +" on " + chart_date)
+        covid_line_subheader.subheader("The number of COVID-19 " + covid_measure_nice_name + " on " + chart_date)
     
         # wait 0.1 second before go onto next day
         time.sleep(0.2)
