@@ -1,18 +1,8 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[85]:
-
-
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.ticker as tk
 import seaborn as sns
-
-
-# In[18]:
-
 
 # From AEC of federal election results
 data = {"party": ["Liberal-National Coalition","Australian Labor Party", "Other",
@@ -20,33 +10,11 @@ data = {"party": ["Liberal-National Coalition","Australian Labor Party", "Other"
        "election_year": ["2016","2016","2016","2019","2019","2019"],
        "seats": [76,69,5,77,68,6]}
 
-
-# In[19]:
-
-
 df = pd.DataFrame(data)
-
-
-# In[20]:
-
-
 df.head()
-
-
-# In[21]:
-
-
 df.info()
 
-
-# In[39]:
-
-
 party_values = df.loc[:, "party"].values
-
-
-# In[88]:
-
 
 fig, axes = plt.subplots(nrows = 1, ncols = 1, figsize = (2,4))
 
@@ -77,14 +45,7 @@ axes.spines["left"].set_visible(False)
 axes.spines["top"].set_visible(False)
 axes.spines["bottom"].set_visible(False)
 
-
-# In[70]:
-
-
 fig.savefig("house_seats.png", dpi = 300)
-
-
-# In[ ]:
 
 
 
