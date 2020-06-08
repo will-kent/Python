@@ -142,6 +142,13 @@ while True:
 
     elif gameStarted is True and gameOver is True:
         playerLost(playerName)
+
+        if mouseStates[0] is 1:
+            if mousePosition[0] > 400 and mousePosition[0] < 600 and mousePosition[1] > 400 and mousePosition[1] < 500:
+                score = 0
+                enemyShips = []
+                gameOver = False
+                gameStarted = False
             
     #Handle user and system events
     for event in GAME_EVENTS.get():
